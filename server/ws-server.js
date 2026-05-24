@@ -101,19 +101,9 @@ export function createWsServer(router) {
 
     let buf = head;
     let lastPong = Date.now();
-    const PONG_TIMEOUT = 10000; // 10s without pong → disconnect
+    const PONG_TIMEOUT = 10000;
 
-    const heartbeat = setInterval(() => {
-      if (Date.now() - lastPong > PONG_TIMEOUT) {
-        clearInterval(heartbeat);
-        socket.destroy();
-        return;
-      }
-      try { socket.write(createFrame("", OP_PING)); } catch { /* socket may be gone */ }
-    }, 30000);
-
-    socket.on("data", (chunk) => {
-      buf = Buffer.concat([buf, chunk]);
+    function processFrames() {
       while (buf.length > 0) {
         const frame = parseFrame(buf);
         if (!frame) break;
@@ -142,7 +132,24 @@ export function createWsServer(router) {
         }
         buf = buf.subarray(frame.consumed);
       }
+    }
+
+    const heartbeat = setInterval(() => {
+      if (Date.now() - lastPong > PONG_TIMEOUT) {
+        clearInterval(heartbeat);
+        socket.destroy();
+        return;
+      }
+      try { socket.write(createFrame("", OP_PING)); } catch {}
+    }, 30000);
+
+    socket.on("data", (chunk) => {
+      buf = Buffer.concat([buf, chunk]);
+      processFrames();
     });
+
+    // 处理 upgrade 时可能已到达的 head 数据
+    processFrames();
 
     socket.on("close", () => clearInterval(heartbeat));
     socket.on("error", () => { clearInterval(heartbeat); socket.destroy(); });
