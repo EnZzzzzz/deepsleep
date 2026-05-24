@@ -1,0 +1,20 @@
+{
+  "name": "deepsleep",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./deepsleep/index.js",
+  "exports": {
+    ".": "./deepsleep/index.js",
+    "./protocol": "./deepsleep/protocol/types.js",
+    "./agent": "./deepsleep/agent/index.js",
+    "./session": "./deepsleep/session/index.js",
+    "./config": "./deepsleep/config/index.js",
+    "./providers": "./deepsleep/providers/index.js"
+  },
+  "scripts": {
+    "start": "node main.js",
+    "test": "node --test tests/",
+    "test:watch": "node --test --watch tests/"
+  },
+  "license": "MIT"
+}
