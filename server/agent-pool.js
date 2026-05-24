@@ -22,7 +22,7 @@ export class AgentPool {
       inputQueue: new InputQueue(),
     });
     const loopPromise = submissionLoop({ session, rxSub: channel });
-    this.#agents.set(agentId, { session, channel, loopPromise });
+    this.#agents.set(agentId, { session, channel, loopPromise, providerId });
     return agentId;
   }
 
@@ -41,8 +41,11 @@ export class AgentPool {
     const entry = this.#agents.get(agentId);
     if (!entry) return;
     entry.channel.send({ type: OpType.SHUTDOWN });
-    await entry.loopPromise;
-    this.#agents.delete(agentId);
+    try {
+      await entry.loopPromise;
+    } finally {
+      this.#agents.delete(agentId);
+    }
   }
 
   async shutdownAll() {
