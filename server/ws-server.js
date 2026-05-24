@@ -99,9 +99,17 @@ export function createWsServer(router) {
       } catch { /* socket may be closed */ }
     };
 
-    let buf = Buffer.alloc(0);
+    let buf = head;
+    let lastPong = Date.now();
+    const PONG_TIMEOUT = 10000; // 10s without pong → disconnect
+
     const heartbeat = setInterval(() => {
-      socket.write(createFrame("", OP_PING));
+      if (Date.now() - lastPong > PONG_TIMEOUT) {
+        clearInterval(heartbeat);
+        socket.destroy();
+        return;
+      }
+      try { socket.write(createFrame("", OP_PING)); } catch { /* socket may be gone */ }
     }, 30000);
 
     socket.on("data", (chunk) => {
@@ -110,6 +118,12 @@ export function createWsServer(router) {
         const frame = parseFrame(buf);
         if (!frame) break;
         if (frame.opcode === OP_PONG) {
+          lastPong = Date.now();
+          buf = buf.subarray(frame.consumed);
+          continue;
+        }
+        if (frame.opcode === OP_PING) {
+          try { socket.write(createFrame(frame.payload, OP_PONG)); } catch {}
           buf = buf.subarray(frame.consumed);
           continue;
         }
