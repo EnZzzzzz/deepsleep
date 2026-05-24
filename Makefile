@@ -1,22 +1,27 @@
-PID_FILE = .deepsleep/server.pid
 LOG_FILE = .deepsleep/server.log
 PORT ?= 3000
 
 .PHONY: start stop logs status restart
 
 start:
-	@mkdir -p $(dir $(PID_FILE))
-	@nohup node main.js > $(LOG_FILE) 2>&1 & echo $$! > $(PID_FILE)
-	@echo "[deepsleep] server started on ws://localhost:$(PORT) (pid: $$(cat $(PID_FILE)))"
+	@mkdir -p $(dir $(LOG_FILE))
+	@nohup node main.js > $(LOG_FILE) 2>&1 &
+	@sleep 1
+	@PID=$$(lsof -ti :$(PORT) 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "[deepsleep] server started on ws://localhost:$(PORT) (pid: $$PID)"; \
+	else \
+		echo "[deepsleep] server failed to start — check logs:"; \
+		tail -5 $(LOG_FILE); \
+		exit 1; \
+	fi
 
 stop:
-	@if [ -f $(PID_FILE) ]; then \
-		kill $$(cat $(PID_FILE)) 2>/dev/null && \
-		echo "[deepsleep] server stopped (pid: $$(cat $(PID_FILE)))" || \
-		echo "[deepsleep] server not running"; \
-		rm -f $(PID_FILE); \
+	@PID=$$(lsof -ti :$(PORT) 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		kill $$PID && echo "[deepsleep] server stopped (pid: $$PID)"; \
 	else \
-		echo "[deepsleep] no pid file found"; \
+		echo "[deepsleep] server not running on port $(PORT)"; \
 	fi
 
 logs:
@@ -27,8 +32,9 @@ logs:
 	fi
 
 status:
-	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
-		echo "[deepsleep] server running (pid: $$(cat $(PID_FILE)))"; \
+	@PID=$$(lsof -ti :$(PORT) 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "[deepsleep] server running on ws://localhost:$(PORT) (pid: $$PID)"; \
 	else \
 		echo "[deepsleep] server not running"; \
 	fi
