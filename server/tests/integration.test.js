@@ -184,4 +184,48 @@ describe("Integration", () => {
     assert.equal(resp.type, "agent.error");
     assert.equal(resp.data.code, "INVALID_MESSAGE");
   });
+
+  it("frame in head buffer is processed immediately on upgrade", async () => {
+    const { serverSocket, clientSocket } = createSocketPair();
+    const key = crypto.randomBytes(16).toString("base64");
+
+    // Build a masked WebSocket frame for agent.list
+    const payload = JSON.stringify({ id: "h1", type: "agent.list", data: {} });
+    const mask = crypto.randomBytes(4);
+    const masked = Buffer.alloc(payload.length);
+    for (let i = 0; i < payload.length; i++) {
+      masked[i] = payload.charCodeAt(i) ^ mask[i % 4];
+    }
+    const frame = Buffer.alloc(2 + 4 + payload.length);
+    frame[0] = 0x81;
+    frame[1] = 0x80 | payload.length;
+    mask.copy(frame, 2);
+    masked.copy(frame, 6);
+
+    // Capture all data sent to clientSocket
+    const chunks = [];
+    clientSocket.on("data", (c) => chunks.push(c));
+
+    // Upgrade with the frame as head buffer
+    const req = { headers: { "sec-websocket-key": key } };
+    server.emit("upgrade", req, serverSocket, frame);
+
+    // Wait for process.nextTick to drain (mock socket uses nextTick)
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Concatenate all chunks and find WS frames after the HTTP 101
+    const all = Buffer.concat(chunks);
+    const bodyStart = all.indexOf("\r\n\r\n") + 4;
+    assert.ok(bodyStart > 4, "handshake 101 should be present");
+
+    // Verify handshake accept key
+    assert.ok(all.subarray(0, bodyStart).toString().includes(computeAcceptKey(key)));
+
+    // Parse WS frame (skip HTTP response bytes)
+    const wsFrame = parseFrame(all.subarray(bodyStart));
+    assert.ok(wsFrame, "should parse a WS frame");
+    const resp = JSON.parse(wsFrame.payload.toString());
+    assert.equal(resp.id, "h1");
+    assert.equal(resp.type, "agent.list");
+  });
 });
