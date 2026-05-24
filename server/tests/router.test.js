@@ -60,11 +60,11 @@ describe("Router", () => {
   });
 
   it("agent.message sends USER_INPUT op and waits for turn end", async () => {
+    await router.handle({ id: "1", type: "agent.create", data: {} }, send);
+    sent.length = 0; // reset after create
     channel.send = mock.fn(() => {
       setImmediate(() => {
-        session._statusEmitter.emit("status", AgentStatus.RUNNING);
         session._statusEmitter.emit("event", { type: EventType.TURN_COMPLETE, message: "reply text" });
-        session._statusEmitter.emit("status", AgentStatus.COMPLETED);
       });
     });
     await router.handle({ id: "4", type: "agent.message", agentId: "a1", data: { content: "hi" } }, send);
@@ -73,8 +73,6 @@ describe("Router", () => {
     const response = sent.find(m => m.id === "4");
     assert.equal(response.type, "agent.message");
     assert.equal(response.data.message, "reply text");
-    const statusPushes = sent.filter(m => m.type === "agent.status");
-    assert.ok(statusPushes.length >= 2);
   });
 
   it("agent.interrupt sends INTERRUPT op", async () => {

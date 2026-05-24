@@ -52,8 +52,6 @@ export class Router {
     const entry = this.#pool.get(msg.agentId);
     if (!entry) return send({ id: msg.id, type: "agent.error", agentId: msg.agentId, data: { code: "AGENT_NOT_FOUND", message: "agent not found" } });
 
-    this.#bindEvents(msg.agentId, send);
-
     const turnEnd = new Promise((resolve) => {
       const h = (event) => {
         if (event.type === EventType.TURN_COMPLETE || event.type === EventType.ERROR) {
