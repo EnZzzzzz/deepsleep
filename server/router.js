@@ -75,6 +75,7 @@ export class Router {
     const entry = this.#pool.get(msg.agentId);
     if (!entry) return send({ id: msg.id, type: "agent.error", agentId: msg.agentId, data: { code: "AGENT_NOT_FOUND", message: "agent not found" } });
     entry.channel.send({ type: OpType.INTERRUPT });
+    send({ id: msg.id, type: "agent.interrupt", agentId: msg.agentId, data: {} });
   }
 
   async #shutdown(msg, send) {
