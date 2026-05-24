@@ -13,8 +13,8 @@
   },
   "scripts": {
     "start": "node main.js",
-    "test": "node --test tests/",
-    "test:watch": "node --test --watch tests/"
+    "test": "node --test 'tests/**/*.test.js' 'server/tests/**/*.test.js'",
+    "test:watch": "node --test --watch 'tests/**/*.test.js' 'server/tests/**/*.test.js'"
   },
   "license": "MIT"
 }
